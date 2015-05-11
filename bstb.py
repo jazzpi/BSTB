@@ -37,7 +37,7 @@ class BSTB(sirc.TwitchIRCClient):
         if lmsg.startswith("!streamtime"):
             logging.info(
                 "STREAMTIME REQUEST ON CHANNEL %s BY USER %s", channel, user)
-            if self.times[channel].get("overwrite_msg", "") != "":
+            if self.times[channel].get("overwrite_msg", None) is not None:
                 self.queue_message(
                     channel, self.times[channel]["overwrite_msg"])
                 return
@@ -93,82 +93,81 @@ class BSTB(sirc.TwitchIRCClient):
             rest = lmsg[5:].strip()
             self.logger.debug("!bstb message with rest: {}".format(rest))
             if rest == "":
-                self.queue_message(
-                    channel, "{} -> I am a bot created by jazzpi that "
+                self.respond(
+                    channel, user, "I am a bot created by jazzpi that "
                     "automatically reads the streamtime from the stream "
                     "description and spits out a countdown if you type "
-                    "'!streamtime'.".format(user))
+                    "'!streamtime'.")
             elif rest == "help":
-                self.queue_message(
-                    channel, "{} -> If you are a mod, you can use '!bstb "
+                self.respond(
+                    channel, user, "If you are a mod, you can use '!bstb "
                     "overwrite_msg' or '!bstb overwrite_time' to overwrite the"
                     " output of BSTB and '!bstb overwrite_discard' to go back "
-                    " to normal.".format(user))
+                    " to normal.")
             elif rest == "overwrite_msg":
-                self.queue_message(
-                    channel, "{} -> Just type '!bstb overwrite_msg "
-                    "your_message_here' to overwrite the output.".format(user))
+                self.respond(
+                    channel, user, "Type '!bstb overwrite_msg "
+                    "your_message_here' to overwrite the output.")
             elif rest.startswith("overwrite_msg "):
                 if not_mod:
-                    self.queue_message(
-                        channel, "{} -> This command is mod-only. If you are "
-                        "mod, try again in a minute or so - Twitch sometimes "
-                        "randomly removes mod status from people.")
+                    self.mod_only(channel, user)
                     return
                 self.times[channel]["overwrite_msg"] = rest[14:]
-                self.queue_message(
-                    channel, "{} -> !streamtime output has been overwritten."
-                    "".format(user))
+                self.respond(
+                    channel, user, "!streamtime output has been overwritten.")
             elif rest == "overwrite_time":
-                self.queue_message(
-                    channel, "{} -> Overwrite time in the format '!bstb "
-                    "overwrite_time YYYY-MM-DD hh:mm [AM|PM] timezone'"
-                    "".format(user))
+                self.respond(
+                    channel, user, "Overwrite time in the format '!bstb "
+                    "overwrite_time YYYY-MM-DD hh:mm [AM|PM] timezone'")
             elif rest.startswith("overwrite_time "):
                 if not_mod:
-                    self.queue_message(
-                        channel, "{} -> This command is mod-only. If you are "
-                        "mod, try again in a minute or so - Twitch sometimes "
-                        "randomly removes mod status from people.".format(
-                            user))
+                    self.mod_only(channel, user)
                     return
                 time_string, tz = rest[15:].rsplit(" ", 1)
                 try:
                     stime = dateutil.parser.parse(time_string)
                 except ValueError:
-                    self.queue_message(
-                        channel, "{} -> Couldn't parse time - Try '!bstb "
-                        "overwrite_time YYYY-MM-DD hh:mm [AM|PM] timezone'"
-                        "".format(user))
+                    self.respond(
+                        channel, user, "Couldn't parse time - Try '!bstb "
+                        "overwrite_time YYYY-MM-DD hh:mm [AM|PM] timezone'")
                     return
                 tz = self.parse_timezone(tz)
                 stime -= datetime.timedelta(minutes=tz)
                 self.times[channel]["overwrite_time"] = stime
-                self.queue_message(
-                    channel, "{} -> Time for next stream overwritten with {}. "
-                    "(Not what you meant? !bstb overwrite_time for more info.)"
-                    "".format(user, stime.strftime('%Y-%m-%d %H:%M UTC')))
+                self.respond(
+                    channel, user, "Time for next stream overwritten with {}."
+                    "".format(stime.strftime('%Y-%m-%d %H:%M UTC')))
             elif rest == "overwrite_discard":
                 if not_mod:
-                    self.queue_message(
-                        channel, "{} -> This command is mod-only. If you are "
-                        "mod, try again in a minute or so - Twitch sometimes "
-                        "randomly removes mod status from people.".format(
-                            user))
+                    self.mod_only(channel, user)
                     return
-                self.channels[channel]["overwrite_msg"] = None
+                self.times[channel]["overwrite_msg"] = None
                 self.channels[channel]["overwrite_time"] = None
+                self.respond(channel, user, "Overwrite discarded.")
 
         elif lmsg.strip().split(" ")[0] == "!uptime":
             if self.times[channel]["live"]:
                 self.queue_message(
-                    channel, "{} -> The stream has been live for {}".format(
-                        user, self.countdown(
+                    channel, "The stream has been live for {}".format(
+                        self.countdown(
                             2 * time.time() -
                             self.times[channel]["live_time"])))
             else:
                 self.queue_message(
-                    channel, "{} -> The stream is not live.".format(user))
+                    channel, "The stream is not live.")
+
+    def respond(self, channel, user, message):
+        """Responds to someone in `channel` in the format
+        '`user` -> `message`'.
+        """
+        self.queue_message(channel, "{} -> {}".format(user, message))
+
+    def mod_only(channel, user):
+        """Tells `user` in `channel` that they can't run a command."""
+        self.respond(
+            channel, user, "This command is mod-only. If you are "
+            "mod, try again in a minute or so - Twitch sometimes "
+            "randomly removes mod status from people.")
 
     def join_channel(self, channel):
         """Joins a channel."""
