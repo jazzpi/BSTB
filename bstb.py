@@ -5,6 +5,7 @@ import json
 import logging
 import pickle
 import re
+import sys
 import threading
 import time
 import urllib.request
@@ -363,4 +364,7 @@ if __name__ == "__main__":
 while True:
     logging.getLogger(__name__).debug(
         [i.getName() for i in threading.enumerate()])
+    if threading.active_count() != 3:
+        logging.getLogger(__name__).critical("One thread terminated. Exiting.")
+        sys.exit()
     time.sleep(5)
