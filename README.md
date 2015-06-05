@@ -1,5 +1,7 @@
 # BSTB
 
+**DEPRECATED:** This bot's functionality is now included in [goto-bus-stop/wololobot](https://github.com/goto-bus-stop/wololobot) with somewhat different commands (see [goto-bus-stop/wololobot#3](https://github.com/goto-bus-stop/wololobot/pull/3)). This bot is no longer being maintained.
+
 The Better StreamTime Bot - a bot that reads the time to the next stream from
 a schedule panel from your Twitch.TV stream description and responds to
 `!streamtime` and `!uptime` commands.
